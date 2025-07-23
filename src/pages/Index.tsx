@@ -5,25 +5,33 @@ import { Badge } from '@/components/ui/badge';
 import LocationRequest from '@/components/LocationRequest';
 import SkyMap from '@/components/SkyMap';
 import SatelliteList from '@/components/SatelliteList';
+import ApiKeyInput from '@/components/ApiKeyInput';
 import { useSatelliteData } from '@/hooks/useSatelliteData';
 
 const Index = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const { satellites, loading, error } = useSatelliteData(userLocation);
+  const [apiKey, setApiKey] = useState<string | null>(null);
+  const { satellites, loading, error } = useSatelliteData(userLocation, apiKey || undefined);
 
   const handleLocationReceived = (location: { lat: number; lng: number }) => {
     setUserLocation(location);
   };
+
+  const handleApiKeySet = (key: string) => {
+    setApiKey(key);
+  };
+
+  // Show API key input if no API key is configured
+  if (!apiKey && !localStorage.getItem('n2yo_api_key') && !localStorage.getItem('use_fallback_data')) {
+    return <ApiKeyInput onApiKeySet={handleApiKeySet} />;
+  }
 
   if (!userLocation) {
     return <LocationRequest onLocationReceived={handleLocationReceived} />;
   }
 
   const visibleCount = satellites.filter(sat => sat.isVisible && sat.elevation > 0).length;
-  const isNightTime = () => {
-    const hour = new Date().getHours();
-    return hour < 6 || hour > 20;
-  };
+  const totalAboveHorizon = satellites.filter(sat => sat.elevation > 0).length;
 
   return (
     <div className="min-h-screen bg-cosmic">
@@ -44,17 +52,15 @@ const Index = () => {
             </div>
             
             <div className="flex items-center gap-3">
-              {!isNightTime() && (
-                <Badge variant="outline" className="border-nebula text-nebula">
-                  Daytime - Limited Visibility
-                </Badge>
-              )}
+              <Badge variant="outline" className="border-stellar/50 text-stellar">
+                {totalAboveHorizon} Above Horizon
+              </Badge>
               
               <Badge 
                 variant={visibleCount > 0 ? "default" : "secondary"}
                 className={visibleCount > 0 ? "bg-stellar" : ""}
               >
-                {visibleCount} Visible
+                {visibleCount} Currently Visible
               </Badge>
               
               <Button
@@ -113,22 +119,21 @@ const Index = () => {
           </div>
         </div>
 
-        {/* Night Sky Tips */}
-        {!isNightTime() && (
-          <div className="mt-6 bg-muted/30 rounded-lg p-4 border-l-4 border-l-nebula">
-            <h3 className="font-semibold mb-2 flex items-center gap-2">
-              <Settings className="w-4 h-4" />
-              Best Viewing Tips
-            </h3>
-            <ul className="text-sm text-muted-foreground space-y-1">
-              <li>• Wait for darker skies (after sunset, before sunrise)</li>
-              <li>• Find an area with minimal light pollution</li>
-              <li>• Look for moving "stars" - satellites appear as steady moving points</li>
-              <li>• ISS and bright Starlink satellites are easiest to spot</li>
-              <li>• Use the sky map to know where to look</li>
-            </ul>
-          </div>
-        )}
+        {/* Viewing Tips */}
+        <div className="mt-6 bg-muted/30 rounded-lg p-4 border-l-4 border-l-stellar">
+          <h3 className="font-semibold mb-2 flex items-center gap-2">
+            <Settings className="w-4 h-4" />
+            Satellite Viewing Tips
+          </h3>
+          <ul className="text-sm text-muted-foreground space-y-1">
+            <li>• Best visibility during dawn and dusk when sky is dark but satellites are sunlit</li>
+            <li>• Find an area with minimal light pollution for optimal viewing</li>
+            <li>• Satellites appear as steady moving points of light</li>
+            <li>• ISS is the brightest and easiest to spot (magnitude -2.5)</li>
+            <li>• Use the sky map to know where to look and track movement</li>
+            <li>• Elevation above 10° provides clear visibility above buildings/trees</li>
+          </ul>
+        </div>
       </main>
 
       {/* Footer */}
