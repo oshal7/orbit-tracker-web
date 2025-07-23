@@ -8,35 +8,55 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* Night Sky Theme - Deep space colors */
+    --background: 220 27% 8%;
+    --foreground: 210 40% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 220 27% 10%;
+    --card-foreground: 210 40% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 220 27% 12%;
+    --popover-foreground: 210 40% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    /* Stellar blue as primary */
+    --primary: 217 91% 60%;
+    --primary-foreground: 220 27% 8%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    /* Cosmic purple as secondary */
+    --secondary: 270 50% 25%;
+    --secondary-foreground: 210 40% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 220 27% 15%;
+    --muted-foreground: 215 20% 65%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    /* Nebula accent */
+    --accent: 280 80% 50%;
+    --accent-foreground: 210 40% 98%;
 
-    --destructive: 0 84.2% 60.2%;
+    --destructive: 0 84% 60%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 220 27% 18%;
+    --input: 220 27% 15%;
+    --ring: 217 91% 60%;
 
-    --radius: 0.5rem;
+    --radius: 0.75rem;
+
+    /* Custom astronomical tokens */
+    --stellar-glow: 217 91% 60%;
+    --cosmic-purple: 270 50% 25%;
+    --nebula-pink: 320 70% 60%;
+    --space-deep: 220 27% 6%;
+    
+    /* Gradients */
+    --gradient-cosmic: linear-gradient(135deg, hsl(220 27% 8%), hsl(270 50% 15%), hsl(220 27% 12%));
+    --gradient-stellar: linear-gradient(45deg, hsl(217 91% 60%), hsl(280 80% 50%));
+    --gradient-aurora: linear-gradient(90deg, hsl(217 91% 60%), hsl(280 80% 50%), hsl(320 70% 60%));
+    
+    /* Effects */
+    --shadow-stellar: 0 0 20px hsl(217 91% 60% / 0.3), 0 0 40px hsl(217 91% 60% / 0.1);
+    --shadow-cosmic: 0 8px 32px hsl(220 27% 4% / 0.4);
+    --glow-animation: stellar-pulse 2s ease-in-out infinite alternate;
 
     --sidebar-background: 0 0% 98%;
 
@@ -101,5 +121,24 @@ All colors MUST be HSL.
 
   body {
     @apply bg-background text-foreground;
+    background: var(--gradient-cosmic);
+    min-height: 100vh;
+  }
+  
+  /* Stellar animations */
+  @keyframes stellar-pulse {
+    0% { box-shadow: var(--shadow-stellar); }
+    100% { box-shadow: 0 0 30px hsl(217 91% 60% / 0.5), 0 0 60px hsl(217 91% 60% / 0.2); }
+  }
+  
+  @keyframes satellite-orbit {
+    0% { transform: translateX(-100px) translateY(50px); opacity: 0; }
+    50% { opacity: 1; }
+    100% { transform: translateX(100px) translateY(-50px); opacity: 0; }
+  }
+  
+  @keyframes twinkle {
+    0%, 100% { opacity: 0.3; transform: scale(1); }
+    50% { opacity: 1; transform: scale(1.1); }
   }
 }

@@ -61,7 +61,21 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
-				}
+				},
+				// Astronomical theme colors
+				stellar: 'hsl(var(--stellar-glow))',
+				cosmic: 'hsl(var(--cosmic-purple))',
+				nebula: 'hsl(var(--nebula-pink))',
+				'space-deep': 'hsl(var(--space-deep))'
+			},
+			backgroundImage: {
+				'cosmic': 'var(--gradient-cosmic)',
+				'stellar': 'var(--gradient-stellar)',
+				'aurora': 'var(--gradient-aurora)'
+			},
+			boxShadow: {
+				'stellar': 'var(--shadow-stellar)',
+				'cosmic': 'var(--shadow-cosmic)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',
