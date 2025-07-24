@@ -10,8 +10,9 @@ import { useSatelliteData } from '@/hooks/useSatelliteData';
 
 const Index = () => {
   const [userLocation, setUserLocation] = useState<{ lat: number; lng: number } | null>(null);
-  const [apiKey, setApiKey] = useState<string | null>(null);
-  const { satellites, loading, error } = useSatelliteData(userLocation, apiKey || undefined);
+  const [apiKey, setApiKey] = useState<string>('DEMO_MODE'); // Start with demo mode
+  const [showApiConfig, setShowApiConfig] = useState(false);
+  const { satellites, loading, error } = useSatelliteData(userLocation, apiKey);
 
   const handleLocationReceived = (location: { lat: number; lng: number }) => {
     setUserLocation(location);
@@ -19,10 +20,11 @@ const Index = () => {
 
   const handleApiKeySet = (key: string) => {
     setApiKey(key);
+    setShowApiConfig(false);
   };
 
-  // Show API key input if no API key is configured
-  if (!apiKey && !localStorage.getItem('n2yo_api_key') && !localStorage.getItem('use_fallback_data')) {
+  // Show API configuration if requested
+  if (showApiConfig) {
     return <ApiKeyInput onApiKeySet={handleApiKeySet} />;
   }
 
@@ -75,6 +77,15 @@ const Index = () => {
                   <RefreshCw className="w-4 h-4" />
                 )}
                 Refresh
+              </Button>
+
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowApiConfig(true)}
+                className="border-stellar/50 hover:border-stellar"
+              >
+                <Settings className="w-4 h-4" />
               </Button>
             </div>
           </div>
@@ -136,13 +147,17 @@ const Index = () => {
         </div>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-border/50 bg-card/30 mt-12">
-        <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
-          <p>Real-time satellite tracking • Updated every 30 seconds</p>
-          <p className="mt-1">Data from open astronomical sources</p>
-        </div>
-      </footer>
+        {/* Footer */}
+        <footer className="border-t border-border/50 bg-card/30 mt-12">
+          <div className="container mx-auto px-4 py-6 text-center text-sm text-muted-foreground">
+            <p>Real-time satellite tracking • Updated every 30 seconds</p>
+            <p className="mt-1">
+              {apiKey === 'DEMO_MODE' || apiKey === 'FALLBACK_MODE' 
+                ? 'Using realistic demo data • Click settings for real API data' 
+                : 'Data from N2YO.com API'}
+            </p>
+          </div>
+        </footer>
     </div>
   );
 };

@@ -25,8 +25,8 @@ interface Location {
 const fetchRealSatelliteData = async (location: Location, apiKey?: string): Promise<SatelliteData[]> => {
   const API_KEY = apiKey || localStorage.getItem('n2yo_api_key') || '';
   
-  // If no API key or using fallback mode, use demo data
-  if (!API_KEY || API_KEY === 'FALLBACK_MODE' || localStorage.getItem('use_fallback_data')) {
+  // If no API key or using fallback/demo mode, use demo data
+  if (!API_KEY || API_KEY === 'FALLBACK_MODE' || API_KEY === 'DEMO_MODE' || localStorage.getItem('use_fallback_data')) {
     return generateFallbackSatelliteData(location);
   }
   
