@@ -48,15 +48,26 @@ const POPULAR_SATELLITES = [
 const fetchTLEData = async (satelliteIds: number[]): Promise<TLEData[]> => {
   try {
     const promises = satelliteIds.map(async (id) => {
-      const response = await fetch(`https://tle.ivanstanojevic.me/api/tle/${id}`);
-      if (!response.ok) {
-        throw new Error(`Failed to fetch TLE for satellite ${id}`);
+      try {
+        const response = await fetch(`https://tle.ivanstanojevic.me/api/tle/${id}`);
+        if (!response.ok) {
+          console.warn(`Satellite ${id} not found, skipping`);
+          return null;
+        }
+        return await response.json();
+      } catch (error) {
+        console.warn(`Failed to fetch satellite ${id}:`, error);
+        return null;
       }
-      return await response.json();
     });
 
-    const results = await Promise.all(promises);
-    return results.filter(result => result && result.line1 && result.line2);
+    const results = await Promise.allSettled(promises);
+    const validResults = results
+      .filter(result => result.status === 'fulfilled' && result.value)
+      .map(result => result.status === 'fulfilled' ? result.value : null)
+      .filter(result => result && result.line1 && result.line2);
+    
+    return validResults;
   } catch (error) {
     console.error('Error fetching TLE data:', error);
     throw error;
