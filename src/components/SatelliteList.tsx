@@ -1,163 +1,127 @@
 import React from 'react';
-import { Satellite, Clock, Eye, Gauge } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
+import { X, Satellite, Eye, EyeOff } from 'lucide-react';
+import type { SatelliteData } from '@/hooks/useSatelliteData';
 
-interface SatelliteData {
-  id: string;
-  name: string;
-  azimuth: number;
-  elevation: number;
-  magnitude: number;
-  range: number;
-  velocity: number;
-  isVisible: boolean;
-  nextPass?: {
-    start: string;
-    duration: number;
-    maxElevation: number;
-  };
+// ── Satellite detail drawer (shown when a satellite is tapped) ─────────────
+interface SatelliteDetailProps {
+  satellite: SatelliteData;
+  onClose: () => void;
 }
 
-interface SatelliteListProps {
-  satellites: SatelliteData[];
+function formatDirection(azimuth: number): string {
+  const dirs = ['N','NNE','NE','ENE','E','ESE','SE','SSE','S','SSW','SW','WSW','W','WNW','NW','NNW'];
+  return dirs[Math.round(azimuth / 22.5) % 16];
 }
 
-const SatelliteList: React.FC<SatelliteListProps> = ({ satellites }) => {
-  const visibleSatellites = satellites.filter(sat => sat.isVisible && sat.elevation > 0);
-  const upcomingSatellites = satellites.filter(sat => !sat.isVisible && sat.nextPass);
+function brightnessLabel(mag: number): { label: string; cls: string } {
+  if (mag < 0) return { label: 'Very Bright', cls: 'text-yellow-300' };
+  if (mag < 2) return { label: 'Bright', cls: 'text-cyan-300' };
+  if (mag < 4) return { label: 'Moderate', cls: 'text-gray-300' };
+  return { label: 'Dim', cls: 'text-gray-500' };
+}
 
-  const formatDirection = (azimuth: number): string => {
-    const directions = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];
-    const index = Math.round(azimuth / 22.5) % 16;
-    return directions[index];
-  };
-
-  const getBrightnessLabel = (magnitude: number): string => {
-    if (magnitude < 0) return 'Very Bright';
-    if (magnitude < 2) return 'Bright';
-    if (magnitude < 4) return 'Moderate';
-    return 'Dim';
-  };
-
-  const getBrightnessColor = (magnitude: number): string => {
-    if (magnitude < 0) return 'bg-stellar text-primary-foreground';
-    if (magnitude < 2) return 'bg-primary text-primary-foreground';
-    if (magnitude < 4) return 'bg-accent text-accent-foreground';
-    return 'bg-muted text-muted-foreground';
-  };
-
+export function SatelliteDetail({ satellite: sat, onClose }: SatelliteDetailProps) {
+  const bright = brightnessLabel(sat.magnitude);
   return (
-    <div className="space-y-6">
-      {/* Currently Visible Satellites */}
-      <Card className="shadow-cosmic">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Eye className="w-5 h-5 text-stellar" />
-            Currently Visible ({visibleSatellites.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {visibleSatellites.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Satellite className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No satellites visible right now</p>
-              <p className="text-sm">Wait for darker skies or check upcoming passes</p>
-            </div>
-          ) : (
-            <div className="grid gap-4">
-              {visibleSatellites.map(satellite => (
-                <div 
-                  key={satellite.id}
-                  className="flex items-start justify-between p-4 rounded-lg bg-muted/50 border hover:bg-muted transition-colors"
-                >
-                  <div className="space-y-2">
-                    <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">{satellite.name}</h3>
-                      <Badge className={getBrightnessColor(satellite.magnitude)}>
-                        {getBrightnessLabel(satellite.magnitude)}
-                      </Badge>
-                    </div>
-                    <div className="grid grid-cols-2 gap-4 text-sm text-muted-foreground">
-                      <div className="flex items-center gap-1">
-                        <span>Direction:</span>
-                        <span className="text-foreground font-medium">
-                          {formatDirection(satellite.azimuth)} ({satellite.azimuth.toFixed(0)}°)
-                        </span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span>Elevation:</span>
-                        <span className="text-foreground font-medium">{satellite.elevation.toFixed(0)}°</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <span>Range:</span>
-                        <span className="text-foreground font-medium">{satellite.range.toFixed(0)} km</span>
-                      </div>
-                      <div className="flex items-center gap-1">
-                        <Gauge className="w-3 h-3" />
-                        <span className="text-foreground font-medium">{satellite.velocity.toFixed(1)} km/s</span>
-                      </div>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end text-right">
-                    <div className="text-xs text-muted-foreground">Magnitude</div>
-                    <div className="text-lg font-bold text-stellar">
-                      {satellite.magnitude > 0 ? '+' : ''}{satellite.magnitude.toFixed(1)}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </CardContent>
-      </Card>
+    <div className="absolute bottom-0 left-0 right-0 z-20 animate-in slide-in-from-bottom duration-300">
+      <div className="bg-[#060e1a]/95 backdrop-blur-md border-t border-cyan-500/20 rounded-t-2xl p-5 shadow-2xl">
+        {/* Handle */}
+        <div className="w-10 h-1 bg-gray-700 rounded-full mx-auto mb-4" />
 
-      {/* Upcoming Passes */}
-      <Card className="shadow-cosmic">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Clock className="w-5 h-5 text-nebula" />
-            Upcoming Passes ({upcomingSatellites.length})
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {upcomingSatellites.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
-              <Clock className="w-12 h-12 mx-auto mb-4 opacity-50" />
-              <p>No upcoming passes calculated</p>
-              <p className="text-sm">Refresh to load prediction data</p>
+        <div className="flex items-start justify-between mb-4">
+          <div>
+            <h3 className="text-lg font-bold text-white">{sat.name}</h3>
+            <div className="flex items-center gap-2 mt-1">
+              {sat.isVisible ? (
+                <Eye className="w-3.5 h-3.5 text-cyan-400" />
+              ) : (
+                <EyeOff className="w-3.5 h-3.5 text-gray-500" />
+              )}
+              <span className={`text-xs font-medium ${sat.isVisible ? 'text-cyan-400' : 'text-gray-500'}`}>
+                {sat.isVisible ? 'Visible now' : 'Below horizon'}
+              </span>
+              <span className="text-gray-600">·</span>
+              <span className={`text-xs font-medium ${bright.cls}`}>{bright.label}</span>
             </div>
-          ) : (
-            <div className="grid gap-3">
-              {upcomingSatellites.slice(0, 5).map(satellite => (
-                <div 
-                  key={satellite.id}
-                  className="flex items-center justify-between p-3 rounded-lg bg-muted/30 border-l-2 border-l-nebula"
-                >
-                  <div>
-                    <h4 className="font-medium">{satellite.name}</h4>
-                    {satellite.nextPass && (
-                      <div className="text-sm text-muted-foreground">
-                        Pass starts: {new Date(satellite.nextPass.start).toLocaleTimeString()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="text-right text-sm">
-                    {satellite.nextPass && (
-                      <>
-                        <div className="text-muted-foreground">Duration</div>
-                        <div className="font-medium">{satellite.nextPass.duration}min</div>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
+          </div>
+          <button onClick={onClose} className="p-1.5 rounded-lg hover:bg-gray-800 text-gray-400 hover:text-white transition-colors">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Stats grid */}
+        <div className="grid grid-cols-2 gap-3">
+          {[
+            { label: 'Direction', value: `${formatDirection(sat.azimuth)} (${sat.azimuth.toFixed(0)}°)` },
+            { label: 'Elevation', value: `${sat.elevation.toFixed(1)}°` },
+            { label: 'Distance', value: `${sat.range.toFixed(0)} km` },
+            { label: 'Speed', value: `${sat.velocity.toFixed(2)} km/s` },
+            { label: 'Magnitude', value: sat.magnitude > 0 ? `+${sat.magnitude.toFixed(1)}` : `${sat.magnitude.toFixed(1)}` },
+            { label: 'NORAD ID', value: `#${sat.id}` },
+          ].map(({ label, value }) => (
+            <div key={label} className="bg-[#0a1628] rounded-xl p-3 border border-gray-800">
+              <div className="text-[10px] text-gray-500 uppercase tracking-wider mb-1">{label}</div>
+              <div className="text-sm font-semibold text-white">{value}</div>
             </div>
-          )}
-        </CardContent>
-      </Card>
+          ))}
+        </div>
+      </div>
     </div>
   );
-};
+}
 
-export default SatelliteList;
+// ── Compact satellite list below the dome ──────────────────────────────────
+interface SatelliteListProps {
+  satellites: SatelliteData[];
+  onSelect: (sat: SatelliteData) => void;
+}
+
+export function SatelliteList({ satellites, onSelect }: SatelliteListProps) {
+  const visible = satellites.filter(s => s.isVisible);
+  const nearHorizon = satellites.filter(s => !s.isVisible && s.elevation > -5);
+
+  if (visible.length === 0 && nearHorizon.length === 0) {
+    return (
+      <div className="flex items-center justify-center gap-2 py-4 text-gray-600 text-sm">
+        <Satellite className="w-4 h-4" />
+        <span>No satellites above horizon right now</span>
+      </div>
+    );
+  }
+
+  return (
+    <div className="flex gap-2 overflow-x-auto pb-2 px-4 scrollbar-none">
+      {visible.map(sat => (
+        <button
+          key={sat.id}
+          onClick={() => onSelect(sat)}
+          className="shrink-0 flex flex-col items-start bg-[#060e1a] border border-cyan-500/20 rounded-xl px-3 py-2.5 hover:border-cyan-400/50 transition-colors min-w-[130px]"
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="w-2 h-2 rounded-full bg-cyan-400 shadow-[0_0_6px_rgba(0,229,255,0.8)]" />
+            <span className="text-white text-xs font-semibold truncate max-w-[100px]">{sat.name}</span>
+          </div>
+          <div className="text-gray-400 text-[10px]">
+            {formatDirection(sat.azimuth)} · {sat.elevation.toFixed(0)}° up
+          </div>
+        </button>
+      ))}
+
+      {nearHorizon.slice(0, 3).map(sat => (
+        <button
+          key={sat.id}
+          onClick={() => onSelect(sat)}
+          className="shrink-0 flex flex-col items-start bg-[#06091a] border border-gray-800 rounded-xl px-3 py-2.5 hover:border-gray-600 transition-colors min-w-[130px] opacity-60"
+        >
+          <div className="flex items-center gap-1.5 mb-1">
+            <div className="w-2 h-2 rounded-full bg-gray-600" />
+            <span className="text-gray-400 text-xs font-medium truncate max-w-[100px]">{sat.name}</span>
+          </div>
+          <div className="text-gray-600 text-[10px]">
+            {sat.elevation.toFixed(0)}° · rising soon
+          </div>
+        </button>
+      ))}
+    </div>
+  );
+}

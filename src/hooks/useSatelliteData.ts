@@ -1,7 +1,12 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import * as satellite from 'satellite.js';
 
-interface SatelliteData {
+export interface TrailPoint {
+  azimuth: number;
+  elevation: number;
+}
+
+export interface SatelliteData {
   id: string;
   name: string;
   azimuth: number;
@@ -10,198 +15,173 @@ interface SatelliteData {
   range: number;
   velocity: number;
   isVisible: boolean;
-  nextPass?: {
-    start: string;
-    duration: number;
-    maxElevation: number;
-  };
+  trail: TrailPoint[];
 }
 
-interface Location {
+export interface UserLocation {
   lat: number;
   lng: number;
 }
 
-interface TLEData {
-  satelliteId: number;
+interface TLEEntry {
   name: string;
-  date: string;
   line1: string;
   line2: string;
 }
 
-// Popular satellites to track
-const POPULAR_SATELLITES = [
-  25544, // ISS
-  48274, // CSS (TIANHE)
-  48280, // STARLINK-2565
-  25400, // SL-16 R/B
-  28654, // NOAA 18
-  37849, // SUOMI NPP
-  44713, // STARLINK-1007
-  51850, // GOES 18
-  43013, // NOAA 20
-  25338, // NOAA 15
+// Satellites to track (NORAD IDs of commonly visible satellites)
+const SATELLITE_IDS = [
+  25544,  // ISS (ZARYA)
+  48274,  // CSS (TIANHE) - Chinese Space Station
+  20580,  // HST (Hubble Space Telescope)
+  25338,  // NOAA 15
+  28654,  // NOAA 18
+  37849,  // SUOMI NPP
+  43013,  // NOAA 20
+  51850,  // GOES 18
+  44713,  // STARLINK-1007
+  48280,  // STARLINK-2565
+  25400,  // SL-16 R/B
 ];
 
-// Fetch TLE data from free API
-const fetchTLEData = async (satelliteIds: number[]): Promise<TLEData[]> => {
-  try {
-    const promises = satelliteIds.map(async (id) => {
-      try {
-        const response = await fetch(`https://tle.ivanstanojevic.me/api/tle/${id}`);
-        if (!response.ok) {
-          console.warn(`Satellite ${id} not found, skipping`);
-          return null;
-        }
-        return await response.json();
-      } catch (error) {
-        console.warn(`Failed to fetch satellite ${id}:`, error);
-        return null;
-      }
-    });
+async function fetchTLEsFromAPI(): Promise<TLEEntry[]> {
+  const results = await Promise.allSettled(
+    SATELLITE_IDS.map(async (id) => {
+      const resp = await fetch(`https://tle.ivanstanojevic.me/api/tle/${id}`);
+      if (!resp.ok) return null;
+      const data = await resp.json();
+      if (!data.line1 || !data.line2) return null;
+      return { name: data.name as string, line1: data.line1 as string, line2: data.line2 as string };
+    })
+  );
+  return results
+    .filter((r): r is PromiseFulfilledResult<TLEEntry> => r.status === 'fulfilled' && r.value !== null)
+    .map(r => r.value);
+}
 
-    const results = await Promise.allSettled(promises);
-    const validResults = results
-      .filter(result => result.status === 'fulfilled' && result.value)
-      .map(result => result.status === 'fulfilled' ? result.value : null)
-      .filter(result => result && result.line1 && result.line2);
-    
-    return validResults;
-  } catch (error) {
-    console.error('Error fetching TLE data:', error);
-    throw error;
-  }
-};
+function computeLookAngles(
+  satrec: satellite.SatRec,
+  observerGd: { latitude: number; longitude: number; height: number },
+  time: Date
+): { azimuth: number; elevation: number; range: number } | null {
+  const pv = satellite.propagate(satrec, time);
+  if (!pv.position || typeof pv.position === 'boolean') return null;
 
-// Calculate satellite position and visibility
-const calculateSatellitePosition = (tle: TLEData, observerLat: number, observerLng: number): SatelliteData => {
+  // Fix: propagate returns ECI coordinates; ecfToLookAngles needs ECF
+  const gmst = satellite.gstime(time);
+  const positionEcf = satellite.eciToEcf(pv.position as satellite.EciVec3<number>, gmst);
+  const look = satellite.ecfToLookAngles(observerGd, positionEcf);
+
+  let az = look.azimuth * (180 / Math.PI);
+  if (az < 0) az += 360;
+  const el = look.elevation * (180 / Math.PI);
+
+  return { azimuth: az, elevation: el, range: look.rangeSat };
+}
+
+function estimateMagnitude(name: string, range: number): number {
+  let mag = 4.0;
+  const n = name.toUpperCase();
+  if (n.includes('ISS') || n.includes('ZARYA')) mag = -2.5;
+  else if (n.includes('TIANHE') || n.includes('CSS')) mag = 3.2;
+  else if (n.includes('HUBBLE') || n.includes('HST')) mag = 2.5;
+  else if (n.includes('STARLINK')) mag = 4.5;
+  else if (n.includes('NOAA')) mag = 4.5;
+  if (range > 0) mag += Math.log10(range / 400) * 2;
+  return parseFloat(mag.toFixed(1));
+}
+
+// Trail offsets in minutes: 3 past, current, 3 future
+const TRAIL_OFFSETS = [-6, -4, -2, 0, 2, 4, 6];
+
+function processTLE(
+  tle: TLEEntry,
+  observerGd: { latitude: number; longitude: number; height: number },
+  now: Date
+): SatelliteData | null {
   try {
-    // Parse TLE
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
-    
-    // Current time
-    const now = new Date();
-    
-    // Get satellite position
-    const positionAndVelocity = satellite.propagate(satrec, now);
-    
-    if (!positionAndVelocity.position || typeof positionAndVelocity.position === 'boolean') {
-      throw new Error('Invalid satellite position');
-    }
 
-    // Convert to geographic coordinates
-    const positionGd = satellite.eciToGeodetic(positionAndVelocity.position, satellite.gstime(now));
-    
-    // Observer position
-    const observerGd = {
-      latitude: observerLat * (Math.PI / 180), // Convert to radians
-      longitude: observerLng * (Math.PI / 180),
-      height: 0 // Sea level
-    };
+    const current = computeLookAngles(satrec, observerGd, now);
+    if (!current || current.elevation <= -10) return null;
 
-    // Calculate look angles (azimuth, elevation, range)
-    const lookAngles = satellite.ecfToLookAngles(observerGd, positionAndVelocity.position);
-    
-    const azimuth = lookAngles.azimuth * (180 / Math.PI); // Convert to degrees
-    const elevation = lookAngles.elevation * (180 / Math.PI);
-    const range = lookAngles.rangeSat; // km
-
-    // Calculate velocity magnitude
+    // Velocity
+    const pv = satellite.propagate(satrec, now);
     let velocity = 0;
-    if (positionAndVelocity.velocity && typeof positionAndVelocity.velocity !== 'boolean') {
-      const vel = positionAndVelocity.velocity;
-      velocity = Math.sqrt(vel.x * vel.x + vel.y * vel.y + vel.z * vel.z);
+    if (pv.velocity && typeof pv.velocity !== 'boolean') {
+      const v = pv.velocity as satellite.EciVec3<number>;
+      velocity = Math.sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
     }
 
-    // Estimate magnitude based on satellite type and distance
-    let magnitude = 4.0; // Default
-    if (tle.name.includes('ISS')) magnitude = -2.5;
-    else if (tle.name.includes('STARLINK')) magnitude = 4.5 + Math.random() * 1;
-    else if (tle.name.includes('TIANHE')) magnitude = 3.2;
-    
-    // Adjust for distance
-    magnitude += Math.log10(range / 400) * 2;
+    // Compute trail
+    const trail: TrailPoint[] = TRAIL_OFFSETS.map(offsetMin => {
+      const t = new Date(now.getTime() + offsetMin * 60 * 1000);
+      const pos = computeLookAngles(satrec, observerGd, t);
+      return pos ? { azimuth: pos.azimuth, elevation: pos.elevation } : null;
+    }).filter((p): p is TrailPoint => p !== null);
 
-    const isVisible = elevation > 0;
-
-    // Calculate next pass (simplified - just estimate next orbit)
-    let nextPass = undefined;
-    if (!isVisible) {
-      const nextPassTime = new Date(now.getTime() + (90 + Math.random() * 180) * 60 * 1000); // 1.5-4.5 hours
-      nextPass = {
-        start: nextPassTime.toISOString(),
-        duration: Math.floor(3 + Math.random() * 7), // 3-10 minutes
-        maxElevation: Math.floor(10 + Math.random() * 70), // 10-80 degrees
-      };
-    }
+    const id = tle.line1.substring(2, 7).trim();
 
     return {
-      id: tle.satelliteId.toString(),
-      name: tle.name,
-      azimuth: azimuth < 0 ? azimuth + 360 : azimuth, // Normalize to 0-360
-      elevation,
-      magnitude,
-      range,
+      id,
+      name: tle.name.trim(),
+      azimuth: current.azimuth,
+      elevation: current.elevation,
+      range: current.range,
       velocity,
-      isVisible,
-      nextPass
+      magnitude: estimateMagnitude(tle.name, current.range),
+      isVisible: current.elevation > 0,
+      trail,
     };
-  } catch (error) {
-    console.error(`Error calculating position for ${tle.name}:`, error);
-    throw error;
+  } catch {
+    return null;
   }
-};
+}
 
-// Main satellite data fetcher
-const fetchRealSatelliteData = async (location: Location): Promise<SatelliteData[]> => {
-  try {
-    // Fetch TLE data for popular satellites
-    const tleData = await fetchTLEData(POPULAR_SATELLITES);
-    
-    // Calculate positions for all satellites
-    const satellites = tleData.map(tle => 
-      calculateSatellitePosition(tle, location.lat, location.lng)
-    );
-
-    return satellites.filter(sat => sat !== null);
-  } catch (error) {
-    console.error('Failed to fetch satellite data:', error);
-    throw new Error('Failed to fetch satellite data');
-  }
-};
-
-export const useSatelliteData = (location: Location | null) => {
+export function useSatelliteData(location: UserLocation | null) {
   const [satellites, setSatellites] = useState<SatelliteData[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const tleCache = useRef<TLEEntry[]>([]);
+
+  const recompute = useCallback(() => {
+    if (!location || tleCache.current.length === 0) return;
+    const observerGd = {
+      latitude: location.lat * (Math.PI / 180),
+      longitude: location.lng * (Math.PI / 180),
+      height: 0,
+    };
+    const now = new Date();
+    const computed = tleCache.current
+      .map(tle => processTLE(tle, observerGd, now))
+      .filter((s): s is SatelliteData => s !== null);
+    setSatellites(computed);
+  }, [location]);
 
   useEffect(() => {
     if (!location) return;
 
-    const fetchSatelliteData = async () => {
+    const run = async () => {
       setLoading(true);
       setError(null);
-
       try {
-        const realData = await fetchRealSatelliteData(location);
-        setSatellites(realData);
+        if (tleCache.current.length === 0) {
+          tleCache.current = await fetchTLEsFromAPI();
+        }
+        if (tleCache.current.length === 0) throw new Error('No satellite data available');
+        recompute();
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch satellite data');
-        setSatellites([]); // Clear satellites on error
       } finally {
         setLoading(false);
       }
     };
 
-    // Fetch initial data
-    fetchSatelliteData();
-
-    // Update data every 30 seconds for real-time tracking
-    const interval = setInterval(fetchSatelliteData, 30000);
-
+    run();
+    // Recompute positions every 10s (TLE data is cached and reused)
+    const interval = setInterval(recompute, 10000);
     return () => clearInterval(interval);
-  }, [location]);
+  }, [location, recompute]);
 
   return { satellites, loading, error };
-};
+}
