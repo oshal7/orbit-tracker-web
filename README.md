@@ -1,55 +1,52 @@
-# Welcome to my project
+# SkyTracker — Orbit Tracker Web
 
-## Project info
+Track real satellites passing overhead, rendered as a live 3D sky dome above your location.
 
-**URL**: https://lovable.dev/projects/1645f222-25e4-4c3c-b5d9-1885cace712d
+**Live app**: https://oshal7.github.io/orbit-tracker-web/
+**Repository**: https://github.com/oshal7/orbit-tracker-web
 
-## How can I edit this code?
+## What it does
 
-There are several ways of editing your application.
+1. Asks for your GPS location and which direction you're facing (via device compass, or a manual picker on desktop / unsupported devices).
+2. Fetches real Two-Line Element (TLE) orbital data for satellites from [Celestrak](https://celestrak.org/).
+3. Uses [`satellite.js`](https://github.com/shashwatak/satellite-js) to propagate each satellite's orbit and compute its azimuth/elevation relative to your location, in real time.
+4. Renders the satellites currently visible above your horizon as glowing markers with motion trails on an interactive 3D sky dome (zenith at center, horizon at the rim, compass directions around the edge) — built with [Three.js](https://threejs.org/) via [react-three-fiber](https://github.com/pmndrs/react-three-fiber).
+5. Tap a satellite to see its name, elevation, azimuth, range, velocity, and brightness.
 
-**Use your preferred IDE**
+## Tech stack
 
-If you want to work locally using your own IDE, you can clone this repo and push changes. Pushed changes will also be reflected in Lovable.
+- [Vite](https://vitejs.dev/)
+- [TypeScript](https://www.typescriptlang.org/)
+- [React](https://react.dev/)
+- [react-three-fiber](https://github.com/pmndrs/react-three-fiber) / [drei](https://github.com/pmndrs/drei) (Three.js)
+- [satellite.js](https://github.com/shashwatak/satellite-js) (orbital propagation)
+- [shadcn-ui](https://ui.shadcn.com/)
+- [Tailwind CSS](https://tailwindcss.com/)
 
-The only requirement is having Node.js & npm installed - [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating)
+## Running locally
 
-Follow these steps:
+Requires Node.js & npm — [install with nvm](https://github.com/nvm-sh/nvm#installing-and-updating).
 
 ```sh
-# Step 1: Clone the repository using the project's Git URL.
-git clone <YOUR_GIT_URL>
+# Clone the repository
+git clone https://github.com/oshal7/orbit-tracker-web.git
+cd orbit-tracker-web
 
-# Step 2: Navigate to the project directory.
-cd <YOUR_PROJECT_NAME>
+# Install dependencies
+npm install
 
-# Step 3: Install the necessary dependencies.
-npm i
-
-# Step 4: Start the development server with auto-reloading and an instant preview.
+# Start the dev server
 npm run dev
 ```
 
-**Edit a file directly in GitHub**
+Other scripts:
 
-- Navigate to the desired file(s).
-- Click the "Edit" button (pencil icon) at the top right of the file view.
-- Make your changes and commit the changes.
+```sh
+npm run build    # production build
+npm run preview  # preview the production build locally
+npm run lint      # lint the codebase
+```
 
-**Use GitHub Codespaces**
+## Deployment
 
-- Navigate to the main page of your repository.
-- Click on the "Code" button (green button) near the top right.
-- Select the "Codespaces" tab.
-- Click on "New codespace" to launch a new Codespace environment.
-- Edit files directly within the Codespace and commit and push your changes once you're done.
-
-## What technologies are used for this project?
-
-This project is built with:
-
-- Vite
-- TypeScript
-- React
-- shadcn-ui
-- Tailwind CSS
+Pushes to `main` are automatically built and deployed to GitHub Pages via the workflow in [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml).
