@@ -248,7 +248,7 @@ export default function LocationRequest({ onComplete }: LocationRequestProps) {
                 </p>
               </div>
 
-              {compass.isSupported ? (
+              {compass.isSupported && !compass.timedOut ? (
                 compass.needsPermission && compass.heading === null ? (
                   <div className="space-y-4 text-center">
                     <p className="text-gray-400 text-sm">iOS requires permission to access the compass sensor.</p>
@@ -273,16 +273,26 @@ export default function LocationRequest({ onComplete }: LocationRequestProps) {
                   />
                 ) : (
                   // Sensor available but no reading yet
-                  <div className="text-center text-gray-400 text-sm">
-                    <span className="w-4 h-4 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin inline-block mr-2" />
-                    Reading compass…
+                  <div className="space-y-4 text-center">
+                    <div className="text-gray-400 text-sm">
+                      <span className="w-4 h-4 rounded-full border-2 border-cyan-500 border-t-transparent animate-spin inline-block mr-2" />
+                      Reading compass…
+                    </div>
+                    <button
+                      onClick={() => confirmDirection(manualDirection)}
+                      className="w-full py-2 text-gray-500 hover:text-gray-400 text-sm transition-colors"
+                    >
+                      Skip — use manual direction instead
+                    </button>
                   </div>
                 )
               ) : (
-                // Desktop / no sensor — show manual picker
+                // Desktop, no sensor, or the compass never reported a reading — manual picker
                 <div className="space-y-4">
                   <p className="text-gray-400 text-sm text-center">
-                    Tap a direction to set where you're facing.
+                    {compass.timedOut
+                      ? "We couldn't read your compass. Tap a direction to set where you're facing."
+                      : "Tap a direction to set where you're facing."}
                   </p>
                   <CompassPicker selected={manualDirection} onChange={setManualDirection} />
                   <p className="text-center text-white font-medium">

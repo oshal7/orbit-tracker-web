@@ -4,12 +4,16 @@ export interface CompassState {
   heading: number | null;
   isSupported: boolean;
   needsPermission: boolean;
+  timedOut: boolean;
   requestPermission: () => Promise<void>;
 }
+
+const READING_TIMEOUT_MS = 4000;
 
 export function useCompassDirection(): CompassState {
   const [heading, setHeading] = useState<number | null>(null);
   const [permissionGranted, setPermissionGranted] = useState(false);
+  const [timedOut, setTimedOut] = useState(false);
 
   const hasApi = typeof window !== 'undefined' && 'DeviceOrientationEvent' in window;
   // iOS 13+ requires explicit permission request
@@ -44,6 +48,20 @@ export function useCompassDirection(): CompassState {
     return startListening();
   }, [needsPermission, permissionGranted, startListening]);
 
+  // If we're actively listening but never receive a reading, give up after a
+  // few seconds so the UI can fall back to a manual picker instead of
+  // spinning forever (some browsers expose DeviceOrientationEvent but never
+  // actually fire it, e.g. when sensor permissions are blocked).
+  useEffect(() => {
+    const listening = isSupported && (!needsPermission || permissionGranted);
+    if (!listening || heading !== null) {
+      setTimedOut(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setTimedOut(true), READING_TIMEOUT_MS);
+    return () => window.clearTimeout(timer);
+  }, [isSupported, needsPermission, permissionGranted, heading]);
+
   const requestPermission = useCallback(async () => {
     if (!needsPermission) return;
     try {
@@ -57,5 +75,5 @@ export function useCompassDirection(): CompassState {
     }
   }, [needsPermission]);
 
-  return { heading, isSupported, needsPermission, requestPermission };
+  return { heading, isSupported, needsPermission, timedOut, requestPermission };
 }
