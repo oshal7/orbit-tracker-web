@@ -15,6 +15,7 @@ export interface SatelliteData {
   name: string;
   type: string;
   color: string;
+  description: string;
   azimuth: number;
   elevation: number;
   range: number;
@@ -43,6 +44,7 @@ interface TrackedSatellite {
   name: string;
   type: string;
   color: string;
+  description: string;
   satrec: satellite.SatRec;
   altitudeKm: number;
   periodMin: number;
@@ -88,9 +90,9 @@ function buildTracked(tles: TLEEntry[]): TrackedSatellite[] {
     const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
     const id = tle.line1.substring(2, 7).trim();
     const name = tle.name.trim();
-    const { type, color } = classifySatellite(name, id);
+    const { type, color, description } = classifySatellite(name, id);
     const { inclinationDeg, periodMin, altitudeKm } = parseOrbitalParams(tle.line2);
-    return { id, name, type, color, satrec, altitudeKm, periodMin, inclinationDeg };
+    return { id, name, type, color, description, satrec, altitudeKm, periodMin, inclinationDeg };
   });
 }
 
@@ -111,6 +113,7 @@ export function useSatelliteData(location: UserLocation | null) {
           name: t.name,
           type: t.type,
           color: t.color,
+          description: t.description,
           altitudeKm: t.altitudeKm,
           periodMin: t.periodMin,
           inclinationDeg: t.inclinationDeg,

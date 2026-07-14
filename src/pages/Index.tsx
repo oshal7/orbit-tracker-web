@@ -10,6 +10,7 @@ import { formatCoords } from '@/lib/format';
 
 export default function Index() {
   const [location, setLocation] = useState<UserLocation | null>(null);
+  const [locationName, setLocationName] = useState<string | null>(null);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detailId, setDetailId] = useState<string | null>(null);
 
@@ -36,12 +37,17 @@ export default function Index() {
   const handleBack = useCallback(() => setDetailId(null), []);
   const handleResetLocation = useCallback(() => {
     setLocation(null);
+    setLocationName(null);
     setSelectedId(null);
     setDetailId(null);
   }, []);
+  const handleLocationComplete = useCallback((loc: UserLocation, name: string | null) => {
+    setLocation(loc);
+    setLocationName(name);
+  }, []);
 
   if (!location) {
-    return <LocationRequest onComplete={setLocation} />;
+    return <LocationRequest onComplete={handleLocationComplete} />;
   }
 
   if (detailSat) {
@@ -77,6 +83,9 @@ export default function Index() {
             <p style={{ color: muted, fontSize: 9, letterSpacing: '0.11em', fontFamily: 'Space Mono, monospace' }}>
               ORBIT WATCH
             </p>
+            {locationName && (
+              <p style={{ fontSize: 13, fontWeight: 500, marginTop: 4 }}>{locationName}</p>
+            )}
             <p style={{ fontSize: 11.5, fontFamily: 'Space Mono, monospace', color: muted, marginTop: 3, letterSpacing: '0.03em' }}>
               {formatCoords(location.lat, location.lng)}
             </p>

@@ -138,22 +138,63 @@ function hashString(s: string): number {
 export interface SatelliteClass {
   type: string;
   color: string;
+  description: string;
 }
 
-/** Best-effort classification of a satellite's kind + display color from its TLE name. */
+const TYPE_DESCRIPTIONS: Record<string, string> = {
+  'Space Station': 'A continuously crewed research outpost, home to rotating crews conducting science in microgravity.',
+  Observatory: 'A space-based telescope observing the universe from above the distortion of Earth’s atmosphere.',
+  Communications: 'Part of a satellite constellation relaying communications or broadband internet from low Earth orbit.',
+  'Weather Sat.': 'Monitors Earth’s atmosphere, oceans, and land to support weather forecasting and climate research.',
+  Debris: 'A spent rocket stage or inactive object left in orbit after launch, tracked to avoid collisions.',
+  Satellite: 'An artificial satellite orbiting Earth, tracked here using publicly available orbital data.',
+};
+
+/** Best-effort classification of a satellite's kind, display color, and description from its TLE name. */
 export function classifySatellite(name: string, noradId: string): SatelliteClass {
   const n = name.toUpperCase();
-  if (n.includes('ISS') || n.includes('ZARYA')) return { type: 'Space Station', color: '#FF7A3D' };
-  if (n.includes('TIANHE') || n.includes('CSS')) return { type: 'Space Station', color: '#FFC93D' };
-  if (n.includes('HUBBLE') || n.includes('HST')) return { type: 'Observatory', color: '#3DD6A8' };
-  if (n.includes('STARLINK')) return { type: 'Communications', color: '#5B9EFF' };
+  if (n.includes('ISS') || n.includes('ZARYA')) {
+    return {
+      type: 'Space Station',
+      color: '#FF7A3D',
+      description:
+        'The International Space Station orbits Earth roughly every 93 minutes, hosting astronauts from multiple space agencies conducting research in microgravity.',
+    };
+  }
+  if (n.includes('TIANHE') || n.includes('CSS')) {
+    return {
+      type: 'Space Station',
+      color: '#FFC93D',
+      description: 'Tianhe is the core module of China’s Tiangong space station, housing life support and crew quarters.',
+    };
+  }
+  if (n.includes('HUBBLE') || n.includes('HST')) {
+    return {
+      type: 'Observatory',
+      color: '#3DD6A8',
+      description:
+        'The Hubble Space Telescope has observed the universe in visible, ultraviolet, and near-infrared light since 1990.',
+    };
+  }
+  if (n.includes('STARLINK')) {
+    return {
+      type: 'Communications',
+      color: '#5B9EFF',
+      description:
+        'Part of SpaceX’s Starlink constellation, delivering broadband internet from low Earth orbit alongside thousands of sister satellites.',
+    };
+  }
   if (n.includes('NOAA') || n.includes('GOES') || n.includes('SUOMI') || n.includes('METOP')) {
-    return { type: 'Weather Sat.', color: '#B89EFF' };
+    return { type: 'Weather Sat.', color: '#B89EFF', description: TYPE_DESCRIPTIONS['Weather Sat.'] };
   }
   if (n.includes('R/B') || n.includes('DEB') || n.includes('ROCKET BODY')) {
-    return { type: 'Debris', color: '#8A8A8A' };
+    return { type: 'Debris', color: '#8A8A8A', description: TYPE_DESCRIPTIONS.Debris };
   }
-  return { type: 'Satellite', color: FALLBACK_PALETTE[hashString(noradId) % FALLBACK_PALETTE.length] };
+  return {
+    type: 'Satellite',
+    color: FALLBACK_PALETTE[hashString(noradId) % FALLBACK_PALETTE.length],
+    description: TYPE_DESCRIPTIONS.Satellite,
+  };
 }
 
 const COMPASS_16 = ['N', 'NNE', 'NE', 'ENE', 'E', 'ESE', 'SE', 'SSE', 'S', 'SSW', 'SW', 'WSW', 'W', 'WNW', 'NW', 'NNW'];

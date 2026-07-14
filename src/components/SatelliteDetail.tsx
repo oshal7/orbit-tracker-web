@@ -1,5 +1,6 @@
 import { ArrowLeft } from 'lucide-react';
 import type { SatelliteData } from '@/hooks/useSatelliteData';
+import SatelliteIllustration from '@/components/SatelliteIllustration';
 import { passDirectionLabel, formatDirection } from '@/lib/satelliteMath';
 import {
   formatTime,
@@ -28,7 +29,7 @@ function PassArc({ maxEl, color, isDark }: { maxEl: number; color: string; isDar
   const arcPath = `M ${aosX} ${cy} C ${aosX} ${peakY}, ${losX} ${peakY}, ${losX} ${cy}`;
 
   return (
-    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`}>
+    <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} style={{ position: 'absolute', inset: 0 }}>
       {[30, 60].map(el => {
         const r = R * Math.cos((el * Math.PI) / 180);
         const yOff = R * Math.sin((el * Math.PI) / 180);
@@ -184,13 +185,32 @@ export default function SatelliteDetail({ satellite: sat, isDark, onBack }: Sate
           borderBottom: `1px solid ${divider}`,
         }}
       >
-        {pass ? (
-          <PassArc maxEl={pass.maxEl} color={sat.color} isDark={isDark} />
-        ) : (
-          <div style={{ height: 126, display: 'flex', alignItems: 'center', color: muted, fontSize: 12 }}>
-            No pass predicted in the next few hours from your location
-          </div>
-        )}
+        <div style={{ position: 'relative', width: 258, height: 126 }}>
+          <SatelliteIllustration type={sat.type} color={sat.color} isDark={isDark} />
+          {pass ? (
+            <PassArc maxEl={pass.maxEl} color={sat.color} isDark={isDark} />
+          ) : (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'center',
+                paddingBottom: 8,
+                color: muted,
+                fontSize: 11,
+                textAlign: 'center',
+              }}
+            >
+              No pass predicted in the next few hours from your location
+            </div>
+          )}
+        </div>
+      </div>
+
+      <div style={{ paddingLeft: 22, paddingRight: 22, paddingBottom: 8, paddingTop: 16 }}>
+        <p style={{ color: muted, fontSize: 12.5, lineHeight: 1.55, margin: 0 }}>{sat.description}</p>
       </div>
 
       <div style={{ paddingLeft: 22, paddingRight: 22, paddingBottom: 28 }}>
