@@ -1,88 +1,113 @@
-import React, { useState, useCallback } from 'react';
-import { Satellite, MapPin, Compass } from 'lucide-react';
+import { useCallback, useMemo, useState } from 'react';
+import { Settings } from 'lucide-react';
 import LocationRequest from '@/components/LocationRequest';
 import SkyDome from '@/components/SkyDome';
-import { SatelliteDetail, SatelliteList } from '@/components/SatelliteList';
+import PassList from '@/components/PassList';
+import SatelliteDetail from '@/components/SatelliteDetail';
 import { useSatelliteData, type UserLocation, type SatelliteData } from '@/hooks/useSatelliteData';
+import { useDayNight } from '@/hooks/useDayNight';
+import { formatCoords } from '@/lib/format';
 
 export default function Index() {
   const [location, setLocation] = useState<UserLocation | null>(null);
-  const [facingDirection, setFacingDirection] = useState(0);
-  const [selectedSat, setSelectedSat] = useState<SatelliteData | null>(null);
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detailId, setDetailId] = useState<string | null>(null);
 
   const { satellites, loading, error } = useSatelliteData(location);
+  const isDark = useDayNight(location);
 
-  const handleComplete = useCallback((loc: UserLocation, dir: number) => {
-    setLocation(loc);
-    setFacingDirection(dir);
+  const displaySats = useMemo(() => {
+    return satellites
+      .filter(s => s.isVisible || s.nextPass)
+      .sort((a, b) => {
+        if (a.isVisible !== b.isVisible) return a.isVisible ? -1 : 1;
+        if (a.isVisible && b.isVisible) return b.elevation - a.elevation;
+        return a.nextPass!.aosTime.getTime() - b.nextPass!.aosTime.getTime();
+      });
+  }, [satellites]);
+
+  const detailSat = detailId ? (satellites.find(s => s.id === detailId) ?? null) : null;
+
+  const handleSelect = useCallback((id: string) => setSelectedId(id), []);
+  const handleOpenDetail = useCallback((sat: SatelliteData) => {
+    setSelectedId(sat.id);
+    setDetailId(sat.id);
   }, []);
-
-  const handleSelectSat = useCallback((sat: SatelliteData) => {
-    setSelectedSat(sat);
-  }, []);
-
-  const handleCloseDetail = useCallback(() => {
-    setSelectedSat(null);
+  const handleBack = useCallback(() => setDetailId(null), []);
+  const handleResetLocation = useCallback(() => {
+    setLocation(null);
+    setSelectedId(null);
+    setDetailId(null);
   }, []);
 
   if (!location) {
-    return <LocationRequest onComplete={handleComplete} />;
+    return <LocationRequest onComplete={setLocation} />;
   }
 
-  const visibleCount = satellites.filter(s => s.isVisible).length;
-  const dirLabel = ['N','NE','E','SE','S','SW','W','NW'][Math.round(facingDirection / 45) % 8];
+  if (detailSat) {
+    return <SatelliteDetail satellite={detailSat} isDark={isDark} onBack={handleBack} />;
+  }
+
+  const bg = isDark ? '#0A0A0A' : '#F4F2ED';
+  const fg = isDark ? '#FFFFFF' : '#0A0A0A';
+  const muted = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
 
   return (
-    <div className="h-screen bg-[#000308] flex flex-col overflow-hidden">
-
-      {/* ── Header ── */}
-      <header className="flex items-center justify-between px-4 py-2.5 border-b border-gray-900 bg-[#020710]/80 backdrop-blur-sm shrink-0 z-10">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-full bg-cyan-500/10 border border-cyan-500/30 flex items-center justify-center">
-            <Satellite className="w-3.5 h-3.5 text-cyan-400" />
+    <div
+      style={{
+        backgroundColor: bg,
+        color: fg,
+        height: '100vh',
+        fontFamily: "'DM Sans', sans-serif",
+        display: 'flex',
+        flexDirection: 'column',
+        overflow: 'hidden',
+      }}
+    >
+      <div
+        style={{
+          paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)',
+          paddingLeft: 22,
+          paddingRight: 22,
+          paddingBottom: 2,
+        }}
+      >
+        <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+          <div>
+            <p style={{ color: muted, fontSize: 9, letterSpacing: '0.11em', fontFamily: 'Space Mono, monospace' }}>
+              ORBIT WATCH
+            </p>
+            <p style={{ fontSize: 11.5, fontFamily: 'Space Mono, monospace', color: muted, marginTop: 3, letterSpacing: '0.03em' }}>
+              {formatCoords(location.lat, location.lng)}
+            </p>
           </div>
-          <span className="text-white font-semibold text-sm tracking-wide">SkyTracker</span>
+          <button
+            onClick={handleResetLocation}
+            style={{ color: muted, background: 'none', border: 'none', cursor: 'pointer', padding: 0, marginTop: 2 }}
+            aria-label="Change location"
+          >
+            <Settings size={17} />
+          </button>
         </div>
-
-        <div className="flex items-center gap-3 text-xs text-gray-500">
-          <div className="flex items-center gap-1">
-            <div className={`w-1.5 h-1.5 rounded-full ${visibleCount > 0 ? 'bg-cyan-400 shadow-[0_0_6px_rgba(0,229,255,0.8)]' : 'bg-gray-700'}`} />
-            <span className={visibleCount > 0 ? 'text-cyan-400' : 'text-gray-600'}>
-              {visibleCount} visible
-            </span>
-          </div>
-
-          <div className="flex items-center gap-1 text-gray-600">
-            <Compass className="w-3 h-3" />
-            <span>{dirLabel} ({facingDirection}°)</span>
-          </div>
-
-          <div className="flex items-center gap-1 text-gray-700">
-            <MapPin className="w-3 h-3" />
-            <span>{location.lat.toFixed(2)}°, {location.lng.toFixed(2)}°</span>
-          </div>
-        </div>
-      </header>
-
-      {/* ── 3D Sky Dome ── */}
-      <div className="relative flex-1 min-h-0">
-        <SkyDome
-          satellites={satellites}
-          facingDirection={facingDirection}
-          loading={loading}
-          error={error}
-          onSelectSatellite={handleSelectSat}
-        />
-
-        {/* Satellite detail drawer */}
-        {selectedSat && (
-          <SatelliteDetail satellite={selectedSat} onClose={handleCloseDetail} />
-        )}
       </div>
 
-      {/* ── Satellite list strip ── */}
-      <div className="shrink-0 border-t border-gray-900 bg-[#020710]/80 py-3">
-        <SatelliteList satellites={satellites} onSelect={handleSelectSat} />
+      <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 14px 0' }}>
+        <SkyDome
+          isDark={isDark}
+          satellites={displaySats}
+          selectedId={selectedId}
+          onSelect={handleSelect}
+          loading={loading}
+          error={error}
+          size={272}
+        />
+      </div>
+
+      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingLeft: 22, paddingRight: 22, paddingBottom: 18, marginTop: 6 }}>
+        <p style={{ color: muted, fontSize: 9, letterSpacing: '0.13em', fontFamily: 'Space Mono, monospace', marginBottom: 8 }}>
+          OVERHEAD &amp; UPCOMING
+        </p>
+        <PassList satellites={displaySats} isDark={isDark} selectedId={selectedId} onSelect={handleOpenDetail} />
       </div>
     </div>
   );

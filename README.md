@@ -1,27 +1,26 @@
-# SkyTracker — Orbit Tracker Web
+# Orbit Watch — Orbit Tracker Web
 
-Track real satellites passing overhead, rendered as a live 3D sky dome above your location.
+Track real satellites overhead and see predicted upcoming passes, rendered as a 2D sky dome above your location.
 
 **Live app**: https://oshal7.github.io/orbit-tracker-web/
 **Repository**: https://github.com/oshal7/orbit-tracker-web
 
 ## What it does
 
-1. Asks for your GPS location and which direction you're facing (via device compass, or a manual picker on desktop / unsupported devices).
-2. Fetches real Two-Line Element (TLE) orbital data for satellites from [Celestrak](https://celestrak.org/).
-3. Uses [`satellite.js`](https://github.com/shashwatak/satellite-js) to propagate each satellite's orbit and compute its azimuth/elevation relative to your location, in real time.
-4. Renders the satellites currently visible above your horizon as glowing markers with motion trails on an interactive 3D sky dome (zenith at center, horizon at the rim, compass directions around the edge) — built with [Three.js](https://threejs.org/) via [react-three-fiber](https://github.com/pmndrs/react-three-fiber).
-5. Tap a satellite to see its name, elevation, azimuth, range, velocity, and brightness.
+1. Asks for your GPS location.
+2. Fetches real Two-Line Element (TLE) orbital data for a set of well-known satellites from [Celestrak](https://celestrak.org/) (via the `tle.ivanstanojevic.me` API).
+3. Uses [`satellite.js`](https://github.com/shashwatak/satellite-js) to propagate each satellite's orbit and compute its live azimuth/elevation/range/velocity relative to your location, updating every few seconds.
+4. Scans each orbit forward in time to predict upcoming passes — rise (AOS) and set (LOS) times, duration, max elevation, and direction — recomputed every minute.
+5. Renders satellites currently overhead as live glowing dots, and upcoming passes as arcs from rise to set, on a sky dome (zenith at center, horizon at the rim, compass directions around the edge).
+6. Automatically switches between a light and dark theme based on whether it's day or night at your location (using solar elevation, no manual toggle).
+7. Tap a satellite to see full detail: live position (if overhead), next pass timing, and orbital parameters (altitude, period, inclination, brightness).
 
 ## Tech stack
 
 - [Vite](https://vitejs.dev/)
 - [TypeScript](https://www.typescriptlang.org/)
 - [React](https://react.dev/)
-- [react-three-fiber](https://github.com/pmndrs/react-three-fiber) / [drei](https://github.com/pmndrs/drei) (Three.js)
-- [satellite.js](https://github.com/shashwatak/satellite-js) (orbital propagation)
-- [shadcn-ui](https://ui.shadcn.com/)
-- [Tailwind CSS](https://tailwindcss.com/)
+- [satellite.js](https://github.com/shashwatak/satellite-js) (orbital propagation & pass prediction)
 
 ## Running locally
 
