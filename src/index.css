@@ -1,144 +1,24 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
-All colors MUST be HSL.
-*/
-
-@layer base {
-  :root {
-    /* Night Sky Theme - Deep space colors */
-    --background: 220 27% 8%;
-    --foreground: 210 40% 98%;
-
-    --card: 220 27% 10%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 220 27% 12%;
-    --popover-foreground: 210 40% 98%;
-
-    /* Stellar blue as primary */
-    --primary: 217 91% 60%;
-    --primary-foreground: 220 27% 8%;
-
-    /* Cosmic purple as secondary */
-    --secondary: 270 50% 25%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 220 27% 15%;
-    --muted-foreground: 215 20% 65%;
-
-    /* Nebula accent */
-    --accent: 280 80% 50%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 84% 60%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 220 27% 18%;
-    --input: 220 27% 15%;
-    --ring: 217 91% 60%;
-
-    --radius: 0.75rem;
-
-    /* Custom astronomical tokens */
-    --stellar-glow: 217 91% 60%;
-    --cosmic-purple: 270 50% 25%;
-    --nebula-pink: 320 70% 60%;
-    --space-deep: 220 27% 6%;
-    
-    /* Gradients */
-    --gradient-cosmic: linear-gradient(135deg, hsl(220 27% 8%), hsl(270 50% 15%), hsl(220 27% 12%));
-    --gradient-stellar: linear-gradient(45deg, hsl(217 91% 60%), hsl(280 80% 50%));
-    --gradient-aurora: linear-gradient(90deg, hsl(217 91% 60%), hsl(280 80% 50%), hsl(320 70% 60%));
-    
-    /* Effects */
-    --shadow-stellar: 0 0 20px hsl(217 91% 60% / 0.3), 0 0 40px hsl(217 91% 60% / 0.1);
-    --shadow-cosmic: 0 8px 32px hsl(220 27% 4% / 0.4);
-    --glow-animation: stellar-pulse 2s ease-in-out infinite alternate;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
-    --sidebar-background: 240 5.9% 10%;
-    --sidebar-foreground: 240 4.8% 95.9%;
-    --sidebar-primary: 224.3 76.3% 48%;
-    --sidebar-primary-foreground: 0 0% 100%;
-    --sidebar-accent: 240 3.7% 15.9%;
-    --sidebar-accent-foreground: 240 4.8% 95.9%;
-    --sidebar-border: 240 3.7% 15.9%;
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
+* {
+  box-sizing: border-box;
 }
 
-@layer base {
-  * {
-    @apply border-border;
-  }
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
 
-  body {
-    @apply bg-background text-foreground;
-    background: var(--gradient-cosmic);
-    min-height: 100vh;
-  }
-  
-  /* Stellar animations */
-  @keyframes stellar-pulse {
-    0% { box-shadow: var(--shadow-stellar); }
-    100% { box-shadow: 0 0 30px hsl(217 91% 60% / 0.5), 0 0 60px hsl(217 91% 60% / 0.2); }
-  }
-  
-  @keyframes satellite-orbit {
-    0% { transform: translateX(-100px) translateY(50px); opacity: 0; }
-    50% { opacity: 1; }
-    100% { transform: translateX(100px) translateY(-50px); opacity: 0; }
-  }
-  
-  @keyframes twinkle {
-    0%, 100% { opacity: 0.3; transform: scale(1); }
-    50% { opacity: 1; transform: scale(1.1); }
-  }
+body {
+  font-family: 'DM Sans', sans-serif;
+  background-color: #0a0a0a;
+  -webkit-font-smoothing: antialiased;
+}
+
+button {
+  font-family: inherit;
+}
+
+a {
+  color: inherit;
 }
