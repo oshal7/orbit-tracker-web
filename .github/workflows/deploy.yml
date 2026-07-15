@@ -29,6 +29,11 @@ jobs:
 
       - run: npm run build
 
+      # SPA fallback: GitHub Pages serves 404.html for unknown paths (e.g. a hard
+      # refresh on /app). Duplicating index.html there lets client-side routing
+      # take over instead of showing a bare 404.
+      - run: cp dist/index.html dist/404.html
+
       - uses: actions/configure-pages@v5
 
       - uses: actions/upload-pages-artifact@v3
