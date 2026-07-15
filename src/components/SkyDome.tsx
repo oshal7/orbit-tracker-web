@@ -50,6 +50,8 @@ export default function SkyDome({
   const labelColor = isDark ? 'rgba(255,255,255,0.3)' : 'rgba(0,0,0,0.3)';
   const shadow = isDark ? 'rgba(0,0,0,0.5)' : 'rgba(0,0,0,0.1)';
   const zenithColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.04)';
+  const observerColor = isDark ? 'rgba(255,255,255,0.85)' : 'rgba(0,0,0,0.65)';
+  const observerCore = isDark ? '#0A0A0A' : '#F4F2ED';
 
   const suffix = isDark ? 'd' : 'l';
   const fadeId = `fade-${suffix}`;
@@ -248,6 +250,27 @@ export default function SkyDome({
             {label}
           </text>
         ))}
+
+        {/* Observer marker — the zenith (dome center) is straight up from where you're standing */}
+        <g style={{ pointerEvents: 'none' }}>
+          <circle cx={cx} cy={cy} r={8} fill="none" stroke={observerColor} strokeWidth="1" opacity="0.3" />
+          <circle cx={cx} cy={cy} r={3.4} fill={observerColor} />
+          <circle cx={cx} cy={cy} r={1.3} fill={observerCore} />
+          <text
+            x={cx}
+            y={cy + 15}
+            textAnchor="middle"
+            style={{
+              fontSize: 7.5,
+              fill: observerColor,
+              fontFamily: 'Space Mono, monospace',
+              letterSpacing: '0.08em',
+              opacity: 0.7,
+            }}
+          >
+            YOU
+          </text>
+        </g>
       </svg>
     </div>
   );

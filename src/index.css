@@ -44,12 +44,12 @@ a {
 .orbit-dome-wrap {
   display: flex;
   justify-content: center;
-  padding: 6px 14px 0;
+  padding: 10px 8px 0;
 }
 
 .orbit-dome-box {
   width: 100%;
-  max-width: 300px;
+  max-width: min(92vw, 380px);
   aspect-ratio: 1 / 1;
 }
 
