@@ -304,6 +304,40 @@ export default function SkyDome({
             YOU
           </text>
         </g>
+
+        {/* Selection tooltip — shows the selected satellite's name near its dot */}
+        {selectedId &&
+          (() => {
+            const sat = satellites.find(s => s.id === selectedId);
+            if (!sat) return null;
+            const dot = sat.isVisible
+              ? project(sat.azimuth, Math.max(sat.elevation, 0), cx, cy, R)
+              : sat.nextPass
+                ? project(sat.nextPass.aosAz, 0, cx, cy, R)
+                : null;
+            if (!dot) return null;
+
+            const estWidth = Math.min(sat.name.length * 5.4 + 16, size - 8);
+            const placeBelow = dot.y < 36;
+            const boxY = placeBelow ? dot.y + 12 : dot.y - 30;
+            const boxX = Math.max(4, Math.min(dot.x - estWidth / 2, size - estWidth - 4));
+            const tooltipBg = isDark ? 'rgba(18,18,18,0.95)' : 'rgba(255,255,255,0.97)';
+            const tooltipFg = isDark ? '#FFFFFF' : '#0A0A0A';
+
+            return (
+              <g style={{ pointerEvents: 'none' }}>
+                <rect x={boxX} y={boxY} width={estWidth} height={18} rx={9} fill={tooltipBg} stroke={sat.color} strokeWidth="1" />
+                <text
+                  x={boxX + estWidth / 2}
+                  y={boxY + 12}
+                  textAnchor="middle"
+                  style={{ fontSize: 9, fontFamily: 'Space Mono, monospace', fill: tooltipFg, letterSpacing: '0.01em' }}
+                >
+                  {sat.name}
+                </text>
+              </g>
+            );
+          })()}
       </svg>
     </div>
   );
