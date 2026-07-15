@@ -76,7 +76,7 @@ export default function SkyDome({
   const withPass = satellites.filter(s => s.nextPass);
 
   return (
-    <div style={{ position: 'relative' }}>
+    <div className="orbit-dome-box" style={{ position: 'relative' }}>
       {(loading || error) && (
         <div
           style={{
@@ -97,7 +97,7 @@ export default function SkyDome({
           {error ?? 'LOADING SATELLITE DATA…'}
         </div>
       )}
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
+      <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
         <defs>
           <radialGradient id={fadeId} cx="50%" cy="50%" r="50%">
             <stop offset="50%" stopColor="white" stopOpacity="1" />

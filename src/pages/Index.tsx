@@ -57,27 +57,19 @@ export default function Index() {
   const bg = isDark ? '#0A0A0A' : '#F4F2ED';
   const fg = isDark ? '#FFFFFF' : '#0A0A0A';
   const muted = isDark ? 'rgba(255,255,255,0.35)' : 'rgba(0,0,0,0.35)';
+  const divider = isDark ? 'rgba(255,255,255,0.07)' : 'rgba(0,0,0,0.07)';
 
   return (
     <div
+      className="orbit-shell"
       style={{
         backgroundColor: bg,
         color: fg,
-        height: '100vh',
         fontFamily: "'DM Sans', sans-serif",
-        display: 'flex',
-        flexDirection: 'column',
-        overflow: 'hidden',
+        ['--orbit-divider' as string]: divider,
       }}
     >
-      <div
-        style={{
-          paddingTop: 'max(env(safe-area-inset-top, 0px), 24px)',
-          paddingLeft: 22,
-          paddingRight: 22,
-          paddingBottom: 2,
-        }}
-      >
+      <div className="orbit-header">
         <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
           <div>
             <p style={{ color: muted, fontSize: 9, letterSpacing: '0.11em', fontFamily: 'Space Mono, monospace' }}>
@@ -100,23 +92,24 @@ export default function Index() {
         </div>
       </div>
 
-      <div style={{ display: 'flex', justifyContent: 'center', padding: '6px 14px 0' }}>
-        <SkyDome
-          isDark={isDark}
-          satellites={displaySats}
-          selectedId={selectedId}
-          onSelect={handleSelect}
-          loading={loading}
-          error={error}
-          size={272}
-        />
-      </div>
+      <div className="orbit-main">
+        <div className="orbit-dome-wrap">
+          <SkyDome
+            isDark={isDark}
+            satellites={displaySats}
+            selectedId={selectedId}
+            onSelect={handleSelect}
+            loading={loading}
+            error={error}
+          />
+        </div>
 
-      <div style={{ flex: 1, minHeight: 0, overflowY: 'auto', paddingLeft: 22, paddingRight: 22, paddingBottom: 18, marginTop: 6 }}>
-        <p style={{ color: muted, fontSize: 9, letterSpacing: '0.13em', fontFamily: 'Space Mono, monospace', marginBottom: 8 }}>
-          OVERHEAD &amp; UPCOMING
-        </p>
-        <PassList satellites={displaySats} isDark={isDark} selectedId={selectedId} onSelect={handleOpenDetail} />
+        <div className="orbit-list-wrap">
+          <p style={{ color: muted, fontSize: 9, letterSpacing: '0.13em', fontFamily: 'Space Mono, monospace', marginBottom: 8 }}>
+            OVERHEAD &amp; UPCOMING
+          </p>
+          <PassList satellites={displaySats} isDark={isDark} selectedId={selectedId} onSelect={handleOpenDetail} />
+        </div>
       </div>
     </div>
   );
