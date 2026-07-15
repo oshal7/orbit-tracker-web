@@ -29,7 +29,10 @@ export default function Index() {
 
   const detailSat = detailId ? (satellites.find(s => s.id === detailId) ?? null) : null;
 
-  const handleSelect = useCallback((id: string) => setSelectedId(id), []);
+  const handleDomeSelect = useCallback((id: string) => {
+    setSelectedId(id);
+    setDetailId(id);
+  }, []);
   const handleOpenDetail = useCallback((sat: SatelliteData) => {
     setSelectedId(sat.id);
     setDetailId(sat.id);
@@ -98,7 +101,7 @@ export default function Index() {
             isDark={isDark}
             satellites={displaySats}
             selectedId={selectedId}
-            onSelect={handleSelect}
+            onSelect={handleDomeSelect}
             loading={loading}
             error={error}
           />

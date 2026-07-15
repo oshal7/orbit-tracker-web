@@ -1,15 +1,15 @@
 import type { SatelliteData } from '@/hooks/useSatelliteData';
 
 // Convention: azimuth in degrees from N, clockwise. Elevation 0 = horizon, 90 = zenith.
+// A true circular (azimuthal) projection — no ellipse tilt.
 type Pt = { x: number; y: number };
-const TILT = 0.62;
 
 function project(az: number, el: number, cx: number, cy: number, R: number): Pt {
   const azRad = (az * Math.PI) / 180;
   const r = R * (1 - el / 90);
   return {
     x: cx + r * Math.sin(azRad),
-    y: cy - r * Math.cos(azRad) * TILT,
+    y: cy - r * Math.cos(azRad),
   };
 }
 
@@ -41,8 +41,7 @@ export default function SkyDome({
 }: SkyDomeProps) {
   const cx = size / 2;
   const cy = size / 2;
-  const R = size * 0.41;
-  const RY = R * TILT;
+  const R = size * 0.44;
 
   const bg = isDark ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.025)';
   const grid = isDark ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.08)';
@@ -58,6 +57,7 @@ export default function SkyDome({
   const maskId = `mask-${suffix}`;
   const glowId = `glow-${suffix}`;
   const innerGradId = `innerGrad-${suffix}`;
+  const rimGradId = `rimGrad-${suffix}`;
 
   const compassLabels = [
     { az: 0, label: 'N' },
@@ -70,7 +70,7 @@ export default function SkyDome({
     const azRad = (az * Math.PI) / 180;
     return {
       x: p.x + Math.sin(azRad) * offset,
-      y: p.y - Math.cos(azRad) * TILT * offset,
+      y: p.y - Math.cos(azRad) * offset,
       label,
     };
   });
@@ -101,13 +101,14 @@ export default function SkyDome({
       )}
       <svg width="100%" height="100%" viewBox={`0 0 ${size} ${size}`} style={{ display: 'block' }}>
         <defs>
+          {/* Horizon fade — content fades to transparent as it nears the rim */}
           <radialGradient id={fadeId} cx="50%" cy="50%" r="50%">
-            <stop offset="50%" stopColor="white" stopOpacity="1" />
-            <stop offset="92%" stopColor="white" stopOpacity="0.6" />
+            <stop offset="45%" stopColor="white" stopOpacity="1" />
+            <stop offset="88%" stopColor="white" stopOpacity="0.55" />
             <stop offset="100%" stopColor="white" stopOpacity="0" />
           </radialGradient>
           <mask id={maskId}>
-            <ellipse cx={cx} cy={cy} rx={R} ry={RY} fill={`url(#${fadeId})`} />
+            <circle cx={cx} cy={cy} r={R} fill={`url(#${fadeId})`} />
           </mask>
 
           <filter id={glowId} x="-30%" y="-30%" width="160%" height="160%">
@@ -118,25 +119,32 @@ export default function SkyDome({
             </feMerge>
           </filter>
 
-          <radialGradient id={innerGradId} cx="42%" cy="35%" r="65%">
-            <stop offset="0%" stopColor={isDark ? 'rgba(255,255,255,0.07)' : 'rgba(255,255,255,0.6)'} />
-            <stop offset="100%" stopColor={isDark ? 'rgba(0,0,0,0.15)' : 'rgba(0,0,0,0.03)'} />
+          {/* Spherical highlight — off-center light source, like a lit globe */}
+          <radialGradient id={innerGradId} cx="38%" cy="32%" r="70%">
+            <stop offset="0%" stopColor={isDark ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.75)'} />
+            <stop offset="55%" stopColor={isDark ? 'rgba(255,255,255,0.02)' : 'rgba(255,255,255,0.15)'} />
+            <stop offset="100%" stopColor={isDark ? 'rgba(0,0,0,0.2)' : 'rgba(0,0,0,0.05)'} />
+          </radialGradient>
+
+          {/* Rim shading — subtle limb-darkening for a spherical feel */}
+          <radialGradient id={rimGradId} cx="50%" cy="50%" r="50%">
+            <stop offset="70%" stopColor="black" stopOpacity="0" />
+            <stop offset="100%" stopColor="black" stopOpacity={isDark ? 0.35 : 0.12} />
           </radialGradient>
         </defs>
 
-        <ellipse cx={cx} cy={cy + RY + 9} rx={R * 0.78} ry={RY * 0.14} fill={shadow} />
-        <ellipse cx={cx} cy={cy} rx={R} ry={RY} fill={bg} />
+        <ellipse cx={cx} cy={cy + R + 8} rx={R * 0.78} ry={R * 0.1} fill={shadow} />
+        <circle cx={cx} cy={cy} r={R} fill={bg} />
 
         <g>
           {[30, 60].map(el => {
             const r = R * (1 - el / 90);
             return (
-              <ellipse
+              <circle
                 key={el}
                 cx={cx}
                 cy={cy}
-                rx={r}
-                ry={r * TILT}
+                r={r}
                 fill={el === 60 ? zenithColor : 'none'}
                 stroke={grid}
                 strokeWidth="0.7"
@@ -164,8 +172,8 @@ export default function SkyDome({
           />
         </g>
 
-        {/* Pass arcs — masked to fade at horizon */}
-        <g mask={`url(#${maskId})`}>
+        {/* Pass arcs — purely visual, faded to the horizon */}
+        <g mask={`url(#${maskId})`} style={{ pointerEvents: 'none' }}>
           {withPass.map(sat => {
             const pass = sat.nextPass!;
             const aos = project(pass.aosAz, 0, cx, cy, R);
@@ -199,10 +207,32 @@ export default function SkyDome({
                   opacity={arcOpacity}
                   strokeLinecap="round"
                   strokeDasharray={isSelected ? 'none' : '5 4'}
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => onSelect(sat.id)}
                 />
               </g>
+            );
+          })}
+        </g>
+
+        {/* Arc hit targets — generous, unmasked, always fully clickable */}
+        <g>
+          {withPass.map(sat => {
+            const pass = sat.nextPass!;
+            const aos = project(pass.aosAz, 0, cx, cy, R);
+            const peak = project(pass.peakAz, pass.maxEl, cx, cy, R);
+            const los = project(pass.losAz, 0, cx, cy, R);
+            const cp = bezierCP(aos, peak, los);
+            const arcPath = `M ${aos.x.toFixed(2)} ${aos.y.toFixed(2)} Q ${cp.x.toFixed(2)} ${cp.y.toFixed(2)} ${los.x.toFixed(2)} ${los.y.toFixed(2)}`;
+            return (
+              <path
+                key={`hit-${sat.id}`}
+                d={arcPath}
+                fill="none"
+                stroke="transparent"
+                strokeWidth={16}
+                strokeLinecap="round"
+                style={{ cursor: 'pointer', pointerEvents: 'stroke' }}
+                onClick={() => onSelect(sat.id)}
+              />
             );
           })}
         </g>
@@ -230,13 +260,16 @@ export default function SkyDome({
                   <circle cx={dot.x} cy={dot.y} r={7.5} fill="none" stroke={sat.color} strokeWidth="1.2" opacity="0.45" />
                 </>
               )}
+              {/* Generous invisible hit area for touch/click */}
+              <circle cx={dot.x} cy={dot.y} r={13} fill="transparent" />
               <circle cx={dot.x} cy={dot.y} r={dotR} fill={sat.color} opacity={dotOpacity} />
             </g>
           );
         })}
 
-        <ellipse cx={cx} cy={cy} rx={R} ry={RY} fill={`url(#${innerGradId})`} style={{ pointerEvents: 'none' }} />
-        <ellipse cx={cx} cy={cy} rx={R} ry={RY} fill="none" stroke={outline} strokeWidth="1.3" />
+        <circle cx={cx} cy={cy} r={R} fill={`url(#${innerGradId})`} style={{ pointerEvents: 'none' }} />
+        <circle cx={cx} cy={cy} r={R} fill={`url(#${rimGradId})`} style={{ pointerEvents: 'none' }} />
+        <circle cx={cx} cy={cy} r={R} fill="none" stroke={outline} strokeWidth="1.3" />
 
         {compassLabels.map(({ x, y, label }) => (
           <text
