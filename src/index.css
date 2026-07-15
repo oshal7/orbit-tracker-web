@@ -249,7 +249,7 @@ a {
   pointer-events: none;
 }
 
-.landing-floating-icon svg {
+.landing-floating-icon > * {
   transform: scale(0.35);
   transform-origin: top left;
 }
