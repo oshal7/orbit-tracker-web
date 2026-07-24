@@ -104,6 +104,28 @@ export function findPasses(
   return passes.filter(p => p.losTime.getTime() >= from.getTime());
 }
 
+/**
+ * Cheap forward scan that returns just the highest elevation a satellite reaches within a
+ * window — not full pass boundaries. Used to rank a large catalog by "will this be worth a
+ * closer look soon" before running the expensive findPasses() on the promising candidates.
+ */
+export function estimateMaxElevationSoon(
+  satrec: satellite.SatRec,
+  observerGd: ObserverGd,
+  from: Date,
+  horizonHours = 6,
+  stepMinutes = 15
+): number {
+  let maxEl = -90;
+  const steps = Math.ceil((horizonHours * 60) / stepMinutes);
+  for (let i = 0; i <= steps; i++) {
+    const t = new Date(from.getTime() + i * stepMinutes * 60_000);
+    const look = computeLookAngles(satrec, observerGd, t);
+    if (look && look.elevation > maxEl) maxEl = look.elevation;
+  }
+  return maxEl;
+}
+
 /** Parses inclination + mean motion from TLE line 2, derives period and mean altitude. */
 export function parseOrbitalParams(line2: string): OrbitalParams {
   const inclinationDeg = parseFloat(line2.substring(8, 16));
@@ -182,6 +204,20 @@ export function classifySatellite(name: string, noradId: string): SatelliteClass
       color: '#5B9EFF',
       description:
         'Part of SpaceX’s Starlink constellation, delivering broadband internet from low Earth orbit alongside thousands of sister satellites.',
+    };
+  }
+  if (n.includes('ONEWEB')) {
+    return {
+      type: 'Communications',
+      color: '#5B9EFF',
+      description: 'Part of the OneWeb constellation, delivering broadband internet from low Earth orbit.',
+    };
+  }
+  if (n.includes('IRIDIUM')) {
+    return {
+      type: 'Communications',
+      color: '#5B9EFF',
+      description: 'Part of the Iridium constellation, providing global satellite phone and data coverage.',
     };
   }
   if (n.includes('NOAA') || n.includes('GOES') || n.includes('SUOMI') || n.includes('METOP')) {

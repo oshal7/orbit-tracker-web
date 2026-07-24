@@ -3,12 +3,14 @@ import * as satellite from 'satellite.js';
 import {
   computeLookAngles,
   findPasses,
+  estimateMaxElevationSoon,
   parseOrbitalParams,
   estimateMagnitude,
   classifySatellite,
   type PassEvent,
   type ObserverGd,
 } from '@/lib/satelliteMath';
+import { fetchBulkTles, type TLEEntry } from '@/lib/tleSource';
 
 export interface SatelliteData {
   id: string;
@@ -33,12 +35,6 @@ export interface UserLocation {
   lng: number;
 }
 
-interface TLEEntry {
-  name: string;
-  line1: string;
-  line2: string;
-}
-
 interface TrackedSatellite {
   id: string;
   name: string;
@@ -51,8 +47,9 @@ interface TrackedSatellite {
   inclinationDeg: number;
 }
 
-// Satellites to track (NORAD IDs of commonly visible satellites)
-const SATELLITE_IDS = [
+// Curated fallback if the bulk Celestrak catalog fetch fails for any reason (e.g. no CORS
+// support on that endpoint) — a small set of commonly-visible satellites via a per-ID API.
+const FALLBACK_SATELLITE_IDS = [
   25544, // ISS (ZARYA)
   48274, // CSS (TIANHE) - Chinese Space Station
   20580, // HST (Hubble Space Telescope)
@@ -67,12 +64,18 @@ const SATELLITE_IDS = [
 ];
 
 const LIVE_INTERVAL_MS = 5_000;
+const COARSE_INTERVAL_MS = 5 * 60_000;
 const PASS_INTERVAL_MS = 60_000;
-const PASS_HORIZON_HOURS = 6;
 
-async function fetchTLEsFromAPI(): Promise<TLEEntry[]> {
+const PASS_HORIZON_HOURS = 6;
+const COARSE_HORIZON_HOURS = 6;
+const COARSE_STEP_MINUTES = 15;
+const MIN_CANDIDATE_ELEVATION_DEG = 15;
+const CANDIDATE_LIMIT = 150;
+
+async function fetchTLEsFromAPI(ids: number[]): Promise<TLEEntry[]> {
   const results = await Promise.allSettled(
-    SATELLITE_IDS.map(async (id) => {
+    ids.map(async (id) => {
       const resp = await fetch(`https://tle.ivanstanojevic.me/api/tle/${id}`);
       if (!resp.ok) return null;
       const data = await resp.json();
@@ -86,14 +89,20 @@ async function fetchTLEsFromAPI(): Promise<TLEEntry[]> {
 }
 
 function buildTracked(tles: TLEEntry[]): TrackedSatellite[] {
-  return tles.map(tle => {
-    const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
-    const id = tle.line1.substring(2, 7).trim();
-    const name = tle.name.trim();
-    const { type, color, description } = classifySatellite(name, id);
-    const { inclinationDeg, periodMin, altitudeKm } = parseOrbitalParams(tle.line2);
-    return { id, name, type, color, description, satrec, altitudeKm, periodMin, inclinationDeg };
-  });
+  const tracked: TrackedSatellite[] = [];
+  for (const tle of tles) {
+    try {
+      const satrec = satellite.twoline2satrec(tle.line1, tle.line2);
+      const id = tle.line1.substring(2, 7).trim();
+      const name = tle.name.trim();
+      const { type, color, description } = classifySatellite(name, id);
+      const { inclinationDeg, periodMin, altitudeKm } = parseOrbitalParams(tle.line2);
+      tracked.push({ id, name, type, color, description, satrec, altitudeKm, periodMin, inclinationDeg });
+    } catch {
+      // Malformed element set somewhere in a catalog this large — skip it, not fatal.
+    }
+  }
+  return tracked;
 }
 
 export function useSatelliteData(location: UserLocation | null) {
@@ -101,6 +110,7 @@ export function useSatelliteData(location: UserLocation | null) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const trackedRef = useRef<TrackedSatellite[]>([]);
+  const candidateIdsRef = useRef<Set<string>>(new Set());
 
   const recomputeLive = useCallback((observerGd: ObserverGd) => {
     const now = new Date();
@@ -143,12 +153,44 @@ export function useSatelliteData(location: UserLocation | null) {
     });
   }, []);
 
+  // Cheaply ranks the whole catalog by "will this climb worth-watching-high soon" so the
+  // expensive precise pass computation only has to run on a bounded shortlist, not everyone.
+  const recomputeCandidates = useCallback((observerGd: ObserverGd) => {
+    const now = new Date();
+    setSatellites(prev => {
+      const visibleIds = new Set(prev.filter(s => s.isVisible).map(s => s.id));
+      const ranked = trackedRef.current
+        .filter(t => !visibleIds.has(t.id))
+        .map(t => ({
+          id: t.id,
+          maxEl: estimateMaxElevationSoon(t.satrec, observerGd, now, COARSE_HORIZON_HOURS, COARSE_STEP_MINUTES),
+        }))
+        .filter(r => r.maxEl >= MIN_CANDIDATE_ELEVATION_DEG)
+        .sort((a, b) => b.maxEl - a.maxEl)
+        .slice(0, CANDIDATE_LIMIT);
+
+      const newCandidateIds = new Set([...visibleIds, ...ranked.map(r => r.id)]);
+      candidateIdsRef.current = newCandidateIds;
+
+      // Clear pass data for anything that dropped out of tracking so it stops showing stale timing.
+      return prev.map(s => (!newCandidateIds.has(s.id) && s.nextPass ? { ...s, nextPass: null } : s));
+    });
+  }, []);
+
   const recomputePasses = useCallback((observerGd: ObserverGd) => {
     const now = new Date();
-    const passesById = new Map(
-      trackedRef.current.map(t => [t.id, findPasses(t.satrec, observerGd, now, PASS_HORIZON_HOURS)[0] ?? null])
-    );
-    setSatellites(prev => prev.map(s => ({ ...s, nextPass: passesById.get(s.id) ?? null })));
+    setSatellites(prev => {
+      const targetIds = new Set(candidateIdsRef.current);
+      for (const s of prev) if (s.isVisible) targetIds.add(s.id);
+
+      const passesById = new Map<string, PassEvent | null>();
+      for (const t of trackedRef.current) {
+        if (!targetIds.has(t.id)) continue;
+        passesById.set(t.id, findPasses(t.satrec, observerGd, now, PASS_HORIZON_HOURS)[0] ?? null);
+      }
+
+      return prev.map(s => (passesById.has(s.id) ? { ...s, nextPass: passesById.get(s.id) ?? null } : s));
+    });
   }, []);
 
   useEffect(() => {
@@ -165,11 +207,17 @@ export function useSatelliteData(location: UserLocation | null) {
       setError(null);
       try {
         if (trackedRef.current.length === 0) {
-          const tles = await fetchTLEsFromAPI();
+          let tles: TLEEntry[];
+          try {
+            tles = await fetchBulkTles();
+          } catch {
+            tles = await fetchTLEsFromAPI(FALLBACK_SATELLITE_IDS);
+          }
           if (tles.length === 0) throw new Error('No satellite data available');
           trackedRef.current = buildTracked(tles);
         }
         recomputeLive(observerGd);
+        recomputeCandidates(observerGd);
         recomputePasses(observerGd);
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Failed to fetch satellite data');
@@ -180,12 +228,14 @@ export function useSatelliteData(location: UserLocation | null) {
 
     run();
     const liveInterval = window.setInterval(() => recomputeLive(observerGd), LIVE_INTERVAL_MS);
+    const coarseInterval = window.setInterval(() => recomputeCandidates(observerGd), COARSE_INTERVAL_MS);
     const passInterval = window.setInterval(() => recomputePasses(observerGd), PASS_INTERVAL_MS);
     return () => {
       window.clearInterval(liveInterval);
+      window.clearInterval(coarseInterval);
       window.clearInterval(passInterval);
     };
-  }, [location, recomputeLive, recomputePasses]);
+  }, [location, recomputeLive, recomputeCandidates, recomputePasses]);
 
   return { satellites, loading, error };
 }

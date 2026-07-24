@@ -8,12 +8,14 @@ Track real satellites overhead and see predicted upcoming passes, rendered as a 
 ## What it does
 
 1. Asks for your GPS location.
-2. Fetches real Two-Line Element (TLE) orbital data for a set of well-known satellites from [Celestrak](https://celestrak.org/) (via the `tle.ivanstanojevic.me` API).
-3. Uses [`satellite.js`](https://github.com/shashwatak/satellite-js) to propagate each satellite's orbit and compute its live azimuth/elevation/range/velocity relative to your location, updating every few seconds.
-4. Scans each orbit forward in time to predict upcoming passes — rise (AOS) and set (LOS) times, duration, max elevation, and direction — recomputed every minute.
+2. Fetches real Two-Line Element (TLE) orbital data for the full active-satellite catalog (~8,000 objects) from [Celestrak](https://celestrak.org/) in one request, cached locally for a couple of hours. Falls back to a small curated list via the `tle.ivanstanojevic.me` API if the bulk fetch fails.
+3. Uses [`satellite.js`](https://github.com/shashwatak/satellite-js) to propagate every satellite's orbit and compute live azimuth/elevation/range/velocity relative to your location, updating every 5 seconds.
+4. Predicting upcoming passes for the *entire* catalog on every tick isn't cheap, so it's tiered: a coarse, sparse-step scan across the whole catalog every 5 minutes ranks satellites by how high they'll climb soon; full precise AOS/LOS pass prediction (30-second-step scan) then runs only on whatever's currently overhead plus the top-ranked candidates from that ranking (capped), recomputed every minute.
 5. Renders satellites currently overhead as live glowing dots, and upcoming passes as arcs from rise to set, on a sky dome (zenith at center, horizon at the rim, compass directions around the edge).
 6. Automatically switches between a light and dark theme based on whether it's day or night at your location (using solar elevation, no manual toggle).
-7. Tap a satellite to see full detail: live position (if overhead), next pass timing, and orbital parameters (altitude, period, inclination, brightness).
+7. Tap a satellite in the list to see full detail: live position (if overhead), next pass timing, and orbital parameters (altitude, period, inclination, brightness). Tapping a dot/arc on the dome itself just highlights it with a name tooltip.
+
+The app lives at `/app`; `/` is a landing page introducing it.
 
 ## Tech stack
 
